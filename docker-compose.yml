@@ -1,0 +1,37 @@
+version: '3.9'
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: lottery-db
+    environment:
+      POSTGRES_DB: lottery
+      POSTGRES_USER: lottery_user
+      POSTGRES_PASSWORD: lottery_pass
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./src/main/resources/db/migration:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U lottery_user -d lottery"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  app:
+    build: .
+    container_name: lottery-app
+    ports:
+      - "8080:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DB_URL: jdbc:postgresql://postgres:5432/lottery
+      DB_USERNAME: lottery_user
+      DB_PASSWORD: lottery_pass
+      JWT_SECRET: mySecretKeyForJWTShouldBeLongEnoughAndSecureInProduction
+
+volumes:
+  postgres_data:
