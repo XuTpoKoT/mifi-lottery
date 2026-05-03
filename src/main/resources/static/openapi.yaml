@@ -1,0 +1,261 @@
+openapi: 3.0.3
+info:
+  title: Лотерейный API
+  version: 1.1.0
+  description: |
+    Бэкенд-система для проведения лотерейных тиражей с покупкой билетов и mock-оплатой.
+
+servers:
+  - url: http://localhost:8080
+
+tags:
+  - name: Авторизация
+  - name: Тиражи
+  - name: Билеты
+
+paths:
+
+  /api/auth/register:
+    post:
+      tags: [Авторизация]
+      summary: Регистрация пользователя
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AuthRequest'
+      responses:
+        "201":
+          description: Пользователь успешно зарегистрирован
+
+  /api/auth/login:
+    post:
+      tags: [Авторизация]
+      summary: Авторизация пользователя
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AuthRequest'
+      responses:
+        "200":
+          description: Успешный вход
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+
+  /api/draws:
+    get:
+      tags: [Тиражи]
+      summary: Получить список тиражей
+      parameters:
+        - in: query
+          name: status
+          schema:
+            type: string
+            enum: [CREATED, COMPLETED]
+      responses:
+        "200":
+          description: Список тиражей
+
+    post:
+      tags: [Тиражи]
+      summary: Создать тираж (ADMIN)
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DrawCreateRequest'
+      responses:
+        "201":
+          description: Тираж создан
+
+  /api/draws/{id}:
+    get:
+      tags: [Тиражи]
+      summary: Получить тираж по ID
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: OK
+        "404":
+          description: Не найден
+
+  /api/draws/{id}/complete:
+    post:
+      tags: [Тиражи]
+      summary: Завершить тираж (ADMIN)
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Тираж завершён
+
+  /api/tickets/{id}/reserve:
+    post:
+      tags: [ Билеты ]
+      summary: Зарезервировать билет
+      description: |
+        Резервирует существующий билет.
+        Билет должен быть в статусе AVAILABLE.
+      security:
+        - bearerAuth: [ ]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+          description: ID билета
+      responses:
+        "200":
+          description: Билет успешно зарезервирован
+        "404":
+          description: Билет не найден
+  /api/tickets/{id}/pay:
+    post:
+      tags: [ Билеты ]
+      summary: Оплатить билет
+      description: |
+        Выполняет mock-оплату билета.
+        При success=true → билет становится PAID.
+        При success=false → билет становится CANCELLED.
+      security:
+        - bearerAuth: [ ]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PaymentRequest'
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+          description: ID билета
+      responses:
+        "200":
+          description: Оплата обработана
+        "404":
+          description: Билет не найден
+
+  /api/tickets:
+    get:
+      tags: [Билеты]
+      summary: Получить билеты пользователя
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Список билетов
+
+  /api/tickets/{id}:
+    get:
+      tags: [Билеты]
+      summary: Получить билет
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: OK
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  schemas:
+    AuthRequest:
+      type: object
+      properties:
+        username:
+          type: string
+          example: user1
+        password:
+          type: string
+          example: password123
+
+    AuthResponse:
+      type: object
+      properties:
+        token:
+          type: string
+
+    DrawCreateRequest:
+      type: object
+      properties:
+        name:
+          type: string
+        ticketPrice:
+          type: number
+
+    PaymentRequest:
+      type: object
+      description: Запрос на оплату билета
+      properties:
+        success:
+          type: boolean
+          example: true
+
+    DrawResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        ticketPrice:
+          type: number
+        startTime:
+          type: string
+          format: date-time
+        endTime:
+          type: string
+          format: date-time
+        status:
+          type: string
+        winningCombination:
+          type: string
+
+    TicketResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+        drawId:
+          type: integer
+        ticketNumber:
+          type: string
+        combination:
+          type: string
+        status:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
