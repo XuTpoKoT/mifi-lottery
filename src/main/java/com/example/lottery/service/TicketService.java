@@ -39,11 +39,11 @@ public class TicketService {
                 }
 
                 ticket.setUserId(userId);
+                ticket.setStatus("RESERVED");
                 ticketRepository.save(ticket);
-
                 conn.commit();
 
-                return ticketRepository.findById(ticketId);
+                return ticket;
 
             } catch (Exception e) {
                 conn.rollback();
