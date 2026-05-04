@@ -109,6 +109,7 @@ public class TicketController extends BaseHandler {
             throws IOException, ServiceException {
 
         Long userId = (Long) request.getAttribute("userId");
+        System.out.println(userId);
 
         List<Ticket> tickets = ticketService.getUserTickets(userId);
 
