@@ -60,7 +60,6 @@ public class DrawService {
                 if ("COMPLETED".equals(draw.getStatus())) {
                     throw new ServiceException("Draw is already completed!");
                 }
-                draw.setEndTime(LocalDateTime.now());
 
                 // Генерируем выигрышную комбинацию (5 чисел от 1 до 25)
                 Set<Integer> winSet = new HashSet<>();
@@ -72,8 +71,7 @@ public class DrawService {
                         .map(String::valueOf)
                         .collect(Collectors.joining(","));
 
-                // Сохраняем комбинацию
-                drawRepository.updateWinningCombination(drawId, winCombination);
+                drawRepository.completeDraw(drawId, winCombination);
 
                 List<Ticket> tickets = ticketRepository.findAllByDraw(drawId);
                 for (Ticket ticket : tickets) {

@@ -134,10 +134,8 @@ public class DrawRepository extends BaseRepository {
         }
     }
 
-
-
-    public boolean updateWinningCombination(Long id, String combination) throws SQLException {
-        String sql = "UPDATE draws SET winning_combination = ? WHERE id = ?";
+    public boolean completeDraw(Long id, String combination) throws SQLException {
+        String sql = "UPDATE draws SET winning_combination = ?, end_time = NOW() WHERE id = ?";
 
         try (Connection conn = dataSource.getConnection()) {
             conn.setAutoCommit(false);

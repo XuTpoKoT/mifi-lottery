@@ -1,21 +1,19 @@
-
-```markdown
-# 🎲 Лотерейный бэкенд (Lottery Backend)
+# Лотерейный бэкенд
 
 Бэкенд-система для проведения лотерейных тиражей с покупкой билетов и mock-оплатой.  
 Реализован **Сценарий 2: Лотерея с оплатой** согласно учебному кейсу.
 
-## 📌 Функциональность
+## Функциональность
 
 - **Аутентификация и авторизация** (JWT, роли `USER` и `ADMIN`).
-- **Управление тиражами** (создание, активация, завершение) — только для `ADMIN`.
+- **Управление тиражами** (создание, завершение) — только для `ADMIN`.
 - **Покупка лотерейных билетов** пользователями.
 - **Mock-оплата билетов** с фиксацией успешного/неуспешного результата.
 - **Генерация выигрышной комбинации** при завершении тиража.
 - **Автоматическое определение выигрыша** и обновление статусов билетов (`WIN` / `LOSE`).
 - **Просмотр истории билетов и результатов** для авторизованных пользователей.
 
-## 🛠 Технологический стек
+## Технологический стек
 
 - **Java 17**
 - **Jetty 11** (встроенный HTTP-сервер, без Spring)
@@ -27,231 +25,110 @@
 - **Maven** (сборка)
 - **Docker / docker-compose** (контейнеризация)
 
+## ER-диаграммма
+```mermaid
+erDiagram
+    USERS ||--o{ DRAWS : creates
+    USERS ||--o{ TICKETS : buys
+    DRAWS ||--o{ TICKETS : contains
+    TICKETS ||--o{ PAYMENTS : has
 
+    USERS {
+        BIGINT id PK
+        VARCHAR username
+        VARCHAR password_hash
+        VARCHAR role
+        TIMESTAMP created_at
+    }
 
-## 🚀 Запуск приложения
+    DRAWS {
+        BIGINT id PK
+        VARCHAR name
+        DECIMAL ticket_price
+        TIMESTAMP start_time
+        TIMESTAMP end_time
+        VARCHAR status
+        VARCHAR winning_combination
+        BIGINT created_by FK
+        TIMESTAMP created_at
+    }
 
-### 🔧 Локально (без Docker)
+    TICKETS {
+        BIGINT id PK
+        BIGINT draw_id FK
+        BIGINT user_id FK
+        VARCHAR ticket_number
+        VARCHAR combination
+        VARCHAR status
+        TIMESTAMP created_at
+    }
 
-**Требования:** Java 17, Maven, PostgreSQL (локальный).
+    PAYMENTS {
+        BIGINT id PK
+        BIGINT ticket_id FK
+        DECIMAL amount
+        VARCHAR status
+        TIMESTAMP payment_time
+        VARCHAR external_id
+        TIMESTAMP created_at
+    }
+```
 
-1. **Создайте базу данных**  
-   Подключитесь к PostgreSQL и выполните:
-   ```sql
-   CREATE USER lottery_user WITH PASSWORD 'lottery_pass';
-   CREATE DATABASE lottery OWNER lottery_user;
-   ```
+## Запуск приложения
 
-2. **Примените схему**  
-   Выполните скрипт `src/main/resources/db/migration/V1__init.sql`:
-   ```bash
-   psql -U lottery_user -d lottery -f src/main/resources/db/migration/V1__init.sql
-   ```
-
-3. **Соберите и запустите приложение**
-   ```bash
-   mvn clean package
-   java -jar target/lottery-backend-1.0-SNAPSHOT.jar
-   ```
-   Сервер запустится на `http://localhost:8080`.
-
-4. **Проверьте работу**
-   ```bash
-   curl http://localhost:8080/api/draws
-   ```
-   Ожидаемый ответ: `[]` (если тиражей нет) или ошибка 401 (требуется авторизация).
-
-### 🐳 Через Docker Compose (рекомендуется)
-
-1. Убедитесь, что Docker и docker-compose установлены.
-2. Выполните команду в корне проекта:
+Выполните команду в корне проекта:
    ```bash
    docker-compose up -d
    ```
-3. Приложение будет доступно на порту `8080`.  
-   База данных PostgreSQL инициализируется автоматически.
+Сервер запустится на `http://localhost:8080`.
 
-4. Остановка контейнеров:
-   ```bash
-   docker-compose down
-   ```
+База данных PostgreSQL инициализируется автоматически.
 
-## 📡 API Endpoints
+Swagger будет доступен  на `http://localhost:8080/swagger.html`
 
-### 🔐 Аутентификация
+API приложения описано в openapi.yaml
 
-| Метод | URL                    | Доступ       | Описание                           |
-|-------|------------------------|--------------|------------------------------------|
-| POST  | `/api/auth/register`   | Публичный    | Регистрация нового пользователя    |
-| POST  | `/api/auth/login`      | Публичный    | Вход, возвращает JWT токен         |
+![img.png](img/swagger.png)
 
-**Пример регистрации:**
-```http
-POST /api/auth/register
-Content-Type: application/json
+## 🧪 Полный сценарий тестирования
 
-{
-  "username": "user",
-  "password": "pass123"
-}
-```
+### 1. Вход под администратором (используйте заранее созданного admin/admin123)
+![img.png](img/img.png)
 
-**Пример входа:**
-```http
-POST /api/auth/login
-Content-Type: application/json
+### 2. Создание тиража (ADMIN)
+![img_1.png](img/img_1.png)
+После выполнения метода будет создан тираж в статусе CREATED и 30 билетов в статусе AVAILABLE.
 
-{
-  "username": "user",
-  "password": "pass123"
-}
-```
-Ответ:
-```json
-{
-  "token": "eyJhbGciOiJIUzI1NiJ9..."
-}
-```
+### 3. Регистрация пользователя
+![img_2.png](img/img_2.png)
 
-> Все остальные эндпоинты требуют заголовок `Authorization: Bearer <token>` (кроме `/api/payments`).
+### 4. Вход обычным пользователем
+![img_3.png](img/img_3.png)
 
-### 🎰 Тиражи
+### 5. Получение списка доступных тиражей
+![img_4.png](img/img_4.png)
 
-| Метод | URL                              | Роль   | Описание                            |
-|-------|----------------------------------|--------|-------------------------------------|
-| GET   | `/api/draws`                     | Любая  | Список активных тиражей             |
-| GET   | `/api/draws/{id}`                | Любая  | Информация о тираже                 |
-| POST  | `/api/draws`                     | ADMIN  | Создание нового тиража              |
-| POST  | `/api/draws/{id}/activate`       | ADMIN  | Активация тиража (статус → ACTIVE)  |
-| POST  | `/api/draws/{id}/complete`       | ADMIN  | Завершение тиража и розыгрыш        |
+### 5. Резервирование билета за пользователем
+![img_5.png](img/img_5.png)
+После выполнения метода билет перейдет в статус RESERVED.
 
-**Пример создания тиража (ADMIN):**
-```http
-POST /api/draws
-Authorization: Bearer <admin_token>
-Content-Type: application/json
+### 6. Оплета билета
+![img_6.png](img/img_6.png)
+При передаче success = true/false билет перейдет в статус PAID/CANCELLED соответственно.
 
-{
-  "name": "Новогодний тираж",
-  "ticketPrice": 100.00,
-  "startTime": "2026-05-01T10:00:00",
-  "endTime": "2026-05-10T18:00:00"
-}
-```
+### 7. Завершение тиража (ADMIN)
+![img_7.png](img/img_7.png)
 
-### 🎫 Билеты
+### 8. Проверка результата билетов
+![img_8.png](img/img_8.png)
+В данной реализации билет считается выигрышным,
+если хотя бы одно число из его комбинации оказалось в выигрышной комбинации.
 
-| Метод | URL                    | Роль  | Описание                               |
-|-------|------------------------|-------|----------------------------------------|
-| POST  | `/api/tickets`         | USER  | Покупка билета для активного тиража    |
-| GET   | `/api/tickets`         | USER  | Список всех билетов текущего пользователя |
-| GET   | `/api/tickets/{id}`    | USER  | Проверка результата конкретного билета |
+Проверим корректность определения выигрыша, получив информацию о тираже
+![img_9.png](img/img_9.png)
 
-**Пример покупки билета:**
-```http
-POST /api/tickets
-Authorization: Bearer <user_token>
-Content-Type: application/json
-
-{
-  "drawId": 1,
-  "combination": "5,12,23,34,45"
-}
-```
-
-### 💳 Платежи
-
-| Метод | URL               | Доступ    | Описание                     |
-|-------|-------------------|-----------|------------------------------|
-| POST  | `/api/payments`   | Публичный | Mock-оплата билета (имитация) |
-
-**Пример успешной оплаты:**
-```http
-POST /api/payments
-Content-Type: application/json
-
-{
-  "ticketId": 1,
-  "success": true
-}
-```
-
-## 🧪 Полный сценарий тестирования (cURL)
-
-Ниже приведены команды для проверки полного цикла работы системы.  
-Предполагается, что сервер запущен на `localhost:8080`.
-
-### 1. Регистрация пользователя
-```bash
-curl -X POST http://localhost:8080/api/auth/register \
-  -H "Content-Type: application/json" \
-  -d '{"username": "user", "password": "pass123"}'
-```
-
-### 2. Вход под администратором (используйте заранее созданного admin/admin123)
-```bash
-curl -X POST http://localhost:8080/api/auth/login \
-  -H "Content-Type: application/json" \
-  -d '{"username": "admin", "password": "admin123"}'
-```
-Сохраните полученный `token` в переменную `ADMIN_TOKEN`.
-
-### 3. Создание тиража (ADMIN)
-```bash
-curl -X POST http://localhost:8080/api/draws \
-  -H "Authorization: Bearer $ADMIN_TOKEN" \
-  -H "Content-Type: application/json" \
-  -d '{"name": "Тестовый тираж", "ticketPrice": 100.00, "startTime": "2026-04-20T10:00:00", "endTime": "2026-04-25T18:00:00"}'
-```
-
-### 4. Активация тиража
-```bash
-curl -X POST http://localhost:8080/api/draws/1/activate \
-  -H "Authorization: Bearer $ADMIN_TOKEN"
-```
-
-### 5. Вход обычным пользователем
-```bash
-curl -X POST http://localhost:8080/api/auth/login \
-  -H "Content-Type: application/json" \
-  -d '{"username": "user", "password": "pass123"}'
-```
-Сохраните `token` в `USER_TOKEN`.
-
-### 6. Покупка билета
-```bash
-curl -X POST http://localhost:8080/api/tickets \
-  -H "Authorization: Bearer $USER_TOKEN" \
-  -H "Content-Type: application/json" \
-  -d '{"drawId": 1, "combination": "5,12,23,34,45"}'
-```
-
-### 7. Имитация оплаты
-```bash
-curl -X POST http://localhost:8080/api/payments \
-  -H "Content-Type: application/json" \
-  -d '{"ticketId": 1, "success": true}'
-```
-
-### 8. Завершение тиража (ADMIN)
-```bash
-# Сначала измените дату окончания на прошедшую (через psql или аналогично)
-curl -X POST http://localhost:8080/api/draws/1/complete \
-  -H "Authorization: Bearer $ADMIN_TOKEN"
-```
-
-### 9. Проверка результата билета
-```bash
-curl -X GET http://localhost:8080/api/tickets/1 \
-  -H "Authorization: Bearer $USER_TOKEN"
-```
-
-## 🔒 Безопасность и особенности
-
-- Пароли хешируются с помощью **BCrypt** (cost = 10).
-- JWT токен подписывается алгоритмом **HS256**, секрет задаётся в `application.properties` (для продакшена должен быть надёжным).
-- По умолчанию в БД создаётся администратор `admin` / `admin123` (пароль захеширован в `V1__init.sql`).
-- Mock-оплата не требует авторизации — в реальном проекте этот эндпоинт должен быть защищён.
+### 9. Просмотр истории тиражей
+![img_10.png](img/img_10.png)
 
 ## 📝 Примечания по реализации
 
@@ -270,4 +147,5 @@ curl -X GET http://localhost:8080/api/tickets/1 \
 - @XuTpoKoT
 - @Lucy_Korotkova
 - @kskskseniia
+- @Gertoce
 ```
